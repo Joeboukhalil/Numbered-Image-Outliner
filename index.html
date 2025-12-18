@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Number Outline Generator</title>
+<style>
+body {
+  margin: 0;
+  background: black;
+  overflow: hidden;
+  font-family: monospace;
+}
+canvas {
+  display: block;
+}
+#controls {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+}
+input, button {
+  margin: 4px;
+  padding: 6px;
+  background: #222;
+  color: white;
+  border: 1px solid #555;
+}
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <input type="file" id="upload" accept="image/*">
+  <button onclick="download()">Download</button>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const charSize = 12;
+
+let outlinePoints = [];
+
+document.getElementById("upload").addEventListener("change", e => {
+  const img = new Image();
+  img.onload = () => generateOutline(img);
+  img.src = URL.createObjectURL(e.target.files[0]);
+});
+
+function generateOutline(img) {
+  outlinePoints = [];
+
+  const temp = document.createElement("canvas");
+  const tctx = temp.getContext("2d");
+
+  const scale = Math.min(
+    canvas.width / img.width,
+    canvas.height / img.height
+  );
+
+  const w = img.width * scale;
+  const h = img.height * scale;
+  const ox = (canvas.width - w) / 2;
+  const oy = (canvas.height - h) / 2;
+
+  temp.width = w;
+  temp.height = h;
+  tctx.drawImage(img, 0, 0, w, h);
+
+  const data = tctx.getImageData(0, 0, w, h).data;
+
+  for (let y = 1; y < h - 1; y += 2) {
+    for (let x = 1; x < w - 1; x += 2) {
+      const i = (y * w + x) * 4;
+      const gx = data[i - 4] - data[i + 4];
+      const gy = data[i - w * 4] - data[i + w * 4];
+
+      if (Math.abs(gx) + Math.abs(gy) > 160) {
+        outlinePoints.push({
+          x: ox + x,
+          y: oy + y,
+          c: chars[Math.random() * chars.length | 0]
+        });
+      }
+    }
+  }
+}
+
+function draw() {
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#00ff66";
+  ctx.font = `${charSize}px monospace`;
+
+  for (const p of outlinePoints) {
+    ctx.fillText(p.c, p.x, p.y);
+  }
+
+  requestAnimationFrame(draw);
+}
+
+draw();
+
+function download() {
+  const a = document.createElement("a");
+  a.download = "number_outline.png";
+  a.href = canvas.toDataURL();
+  a.click();
+}
+</script>
+
+</body>
+</html>
